@@ -11,6 +11,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def load_data(filename):
+    """อ่านข้อมูล transaction จากไฟล์ CSV แบบ binary matrix (1 = มีสินค้า, 0 = ไม่มี)"""
     dataset = []
     try:
         with open(filename, 'r', encoding='utf-8-sig') as f:
@@ -29,6 +30,7 @@ def load_data(filename):
 
 
 def create_C1(dataset):
+    """สร้าง Candidate 1-itemsets จากทุก item ที่ปรากฏใน dataset"""
     C1 = []
     for transaction in dataset:
         for item in transaction:
@@ -39,6 +41,10 @@ def create_C1(dataset):
 
 
 def scan_D(D, Ck, min_support):
+    """
+    นับ support ของแต่ละ candidate itemset
+    คืนค่าเฉพาะ itemset ที่ support >= min_support
+    """
     sscnt = {}
     for tid in D:
         for can in Ck:
@@ -58,6 +64,10 @@ def scan_D(D, Ck, min_support):
 
 
 def apriori_gen(Lk, k):
+    """
+    สร้าง Candidate k-itemsets จาก frequent (k-1)-itemsets
+    โดยรวม 2 itemsets ที่มี k-2 items แรกเหมือนกัน (join step)
+    """
     retList = []
     len_Lk = len(Lk)
     for i in range(len_Lk):
@@ -72,14 +82,19 @@ def apriori_gen(Lk, k):
 
 
 def apriori(dataset, min_support=0.15):
+    """
+    Apriori Algorithm (from scratch)
+    วนหา frequent itemsets ทุกขนาด โดยใช้ Apriori Property:
+    ถ้า itemset ไม่ frequent ทุก superset ก็ไม่ frequent
+    """
     C1 = create_C1(dataset)
     D = list(map(set, dataset))
     L1, support_data = scan_D(D, C1, min_support)
     L = [L1]
     k = 2
     while len(L[k - 2]) > 0:
-        Ck = apriori_gen(L[k - 2], k)
-        Lk, supK = scan_D(D, Ck, min_support)
+        Ck = apriori_gen(L[k - 2], k)        # สร้าง candidates
+        Lk, supK = scan_D(D, Ck, min_support) # กรอง candidates
         support_data.update(supK)
         L.append(Lk)
         k += 1
@@ -87,6 +102,11 @@ def apriori(dataset, min_support=0.15):
 
 
 def generate_rules(L, support_data, min_confidence=0.6):
+    """
+    สร้าง Association Rules จาก frequent itemsets
+    คำนวณ confidence = support(A∪B) / support(A)
+    คำนวณ lift = confidence / support(B)
+    """
     rules = []
     for i in range(1, len(L)):
         for itemset in L[i]:
@@ -109,6 +129,7 @@ def generate_rules(L, support_data, min_confidence=0.6):
 
 
 def run_mlxtend(dataset, min_support=0.15, min_confidence=0.6):
+    """รัน Apriori ด้วย mlxtend library เพื่อ validate ผลลัพธ์"""
     te = TransactionEncoder()
     te_array = te.fit_transform([list(t) for t in dataset])
     df = pd.DataFrame(te_array, columns=te.columns_)
@@ -120,6 +141,7 @@ def run_mlxtend(dataset, min_support=0.15, min_confidence=0.6):
 
 
 def plot_frequent_itemsets(L, support_data):
+    """แสดง bar chart ของ support แต่ละ frequent itemset เรียงจากมากไปน้อย"""
     labels, supports = [], []
     for level in L:
         for itemset in level:
@@ -143,6 +165,7 @@ def plot_frequent_itemsets(L, support_data):
 
 
 def plot_rules(rules, top_n=10):
+    """แสดง top rules เรียงตาม confidence พร้อม lift"""
     top_rules = rules[:top_n]
     rule_labels = [f"{', '.join(sorted(r['antecedent']))} → {', '.join(sorted(r['consequent']))}"
                    for r in top_rules]
@@ -170,6 +193,7 @@ def plot_rules(rules, top_n=10):
 
 
 def plot_comparison(my_rules, ml_rules):
+    """เปรียบเทียบ confidence และ lift ระหว่าง from scratch กับ mlxtend"""
     def rule_key(ant, con):
         return f"{', '.join(sorted(ant))} → {', '.join(sorted(con))}"
 
