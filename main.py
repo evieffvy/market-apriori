@@ -11,7 +11,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def load_data(filename):
-    """อ่านข้อมูล transaction จากไฟล์ CSV แบบ binary matrix (1 = มีสินค้า, 0 = ไม่มี)"""
+    """Read transaction data from CSV file in binary matrix format (1 = item present, 0 = absent)"""
     dataset = []
     try:
         with open(filename, 'r', encoding='utf-8-sig') as f:
@@ -30,7 +30,7 @@ def load_data(filename):
 
 
 def create_C1(dataset):
-    """สร้าง Candidate 1-itemsets จากทุก item ที่ปรากฏใน dataset"""
+    """Generate candidate 1-itemsets from all unique items in the dataset"""
     C1 = []
     for transaction in dataset:
         for item in transaction:
@@ -42,8 +42,8 @@ def create_C1(dataset):
 
 def scan_D(D, Ck, min_support):
     """
-    นับ support ของแต่ละ candidate itemset
-    คืนค่าเฉพาะ itemset ที่ support >= min_support
+    Count support for each candidate itemset.
+    Return only itemsets whose support >= min_support.
     """
     sscnt = {}
     for tid in D:
@@ -65,8 +65,8 @@ def scan_D(D, Ck, min_support):
 
 def apriori_gen(Lk, k):
     """
-    สร้าง Candidate k-itemsets จาก frequent (k-1)-itemsets
-    โดยรวม 2 itemsets ที่มี k-2 items แรกเหมือนกัน (join step)
+    Generate candidate k-itemsets from frequent (k-1)-itemsets.
+    Joins two itemsets that share the same first k-2 items (join step).
     """
     retList = []
     len_Lk = len(Lk)
@@ -83,9 +83,9 @@ def apriori_gen(Lk, k):
 
 def apriori(dataset, min_support=0.15):
     """
-    Apriori Algorithm (from scratch)
-    วนหา frequent itemsets ทุกขนาด โดยใช้ Apriori Property:
-    ถ้า itemset ไม่ frequent ทุก superset ก็ไม่ frequent
+    Apriori Algorithm (from scratch).
+    Iteratively finds frequent itemsets of increasing size using the Apriori Property:
+    if an itemset is not frequent, all its supersets cannot be frequent either.
     """
     C1 = create_C1(dataset)
     D = list(map(set, dataset))
@@ -93,8 +93,8 @@ def apriori(dataset, min_support=0.15):
     L = [L1]
     k = 2
     while len(L[k - 2]) > 0:
-        Ck = apriori_gen(L[k - 2], k)        # สร้าง candidates
-        Lk, supK = scan_D(D, Ck, min_support) # กรอง candidates
+        Ck = apriori_gen(L[k - 2], k)         # generate candidates
+        Lk, supK = scan_D(D, Ck, min_support)  # prune by min_support
         support_data.update(supK)
         L.append(Lk)
         k += 1
@@ -103,9 +103,9 @@ def apriori(dataset, min_support=0.15):
 
 def generate_rules(L, support_data, min_confidence=0.6):
     """
-    สร้าง Association Rules จาก frequent itemsets
-    คำนวณ confidence = support(A∪B) / support(A)
-    คำนวณ lift = confidence / support(B)
+    Generate association rules from frequent itemsets.
+    confidence = support(A∪B) / support(A)
+    lift       = confidence / support(B)
     """
     rules = []
     for i in range(1, len(L)):
@@ -129,7 +129,7 @@ def generate_rules(L, support_data, min_confidence=0.6):
 
 
 def run_mlxtend(dataset, min_support=0.15, min_confidence=0.6):
-    """รัน Apriori ด้วย mlxtend library เพื่อ validate ผลลัพธ์"""
+    """Run Apriori using mlxtend library to validate results against the from-scratch implementation"""
     te = TransactionEncoder()
     te_array = te.fit_transform([list(t) for t in dataset])
     df = pd.DataFrame(te_array, columns=te.columns_)
@@ -141,7 +141,7 @@ def run_mlxtend(dataset, min_support=0.15, min_confidence=0.6):
 
 
 def plot_frequent_itemsets(L, support_data):
-    """แสดง bar chart ของ support แต่ละ frequent itemset เรียงจากมากไปน้อย"""
+    """Plot horizontal bar chart of support for each frequent itemset, sorted descending"""
     labels, supports = [], []
     for level in L:
         for itemset in level:
@@ -165,7 +165,7 @@ def plot_frequent_itemsets(L, support_data):
 
 
 def plot_rules(rules, top_n=10):
-    """แสดง top rules เรียงตาม confidence พร้อม lift"""
+    """Plot top association rules ranked by confidence, with a separate lift chart"""
     top_rules = rules[:top_n]
     rule_labels = [f"{', '.join(sorted(r['antecedent']))} → {', '.join(sorted(r['consequent']))}"
                    for r in top_rules]
@@ -193,7 +193,7 @@ def plot_rules(rules, top_n=10):
 
 
 def plot_comparison(my_rules, ml_rules):
-    """เปรียบเทียบ confidence และ lift ระหว่าง from scratch กับ mlxtend"""
+    """Compare confidence and lift between from-scratch implementation and mlxtend"""
     def rule_key(ant, con):
         return f"{', '.join(sorted(ant))} → {', '.join(sorted(con))}"
 
